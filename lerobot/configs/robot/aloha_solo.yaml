@@ -28,10 +28,10 @@ calibration_dir: .cache/calibration/aloha_default
 max_relative_target: null
 
 leader_arms:
-  right:
+  left:
     _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/ttyDXL_leader_right
-    motors:  # window_x
+    port: /dev/ttyDXL_leader_left
+    motors:  # widow_x
       # name: (index, model)
       waist: [1, xm430-w350]
       shoulder: [2, xm430-w350]
@@ -44,9 +44,9 @@ leader_arms:
       gripper: [9, xc430-w150]
 
 follower_arms:
-  right:
+  left:
     _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/ttyDXL_follower_right
+    port: /dev/ttyDXL_follower_left
     motors:
       # name: [index, model]
       waist: [1, xm540-w270]
@@ -63,16 +63,16 @@ follower_arms:
 # data recording due to bandwidth limit, you might need to plug the camera
 # on another USB hub or PCIe card.
 cameras:
-  cam_high:
+  cam_low:
     _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 1234567890
+    serial_number: 218622273734
     fps: 30
     width: 640
     height: 480
 
-  cam_right_wrist:
+  cam_left_wrist:
     _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 1234567890
+    serial_number: 218622275088
     fps: 30
     width: 640
     height: 480

@@ -40,7 +40,7 @@ override_dataset_stats:
 
 
 training:
-  offline_steps: 80000
+  offline_steps: 10  # debug
   online_steps: 0
   eval_freq: -1
   save_freq: 10000
