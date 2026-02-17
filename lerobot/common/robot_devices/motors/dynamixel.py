@@ -108,6 +108,8 @@ X_SERIES_BAUDRATE_TABLE = {
 
 CALIBRATION_REQUIRED = ["Goal_Position", "Present_Position"]
 CONVERT_UINT32_TO_INT32_REQUIRED = ["Goal_Position", "Present_Position"]
+# 16-bit signed values that need conversion from unsigned to signed
+CONVERT_UINT16_TO_INT16_REQUIRED = ["Present_Current", "Goal_Current", "Present_PWM"]
 
 MODEL_CONTROL_TABLE = {
     "x_series": X_SERIES_CONTROL_TABLE,
@@ -731,6 +733,13 @@ class DynamixelMotorsBus:
             values.append(value)
 
         values = np.array(values)
+
+        # Convert 16-bit unsigned to signed (e.g., Present_Current, Goal_Current, Present_PWM)
+        # Dynamixel SDK returns unsigned 16-bit values, but these should be interpreted as signed
+        # Convert from unsigned 16-bit range [0, 65535] to signed 16-bit range [-32768, 32767]
+        if data_name in CONVERT_UINT16_TO_INT16_REQUIRED:
+            # Convert values >= 32768 to negative by subtracting 65536
+            values = np.where(values >= 32768, values - 65536, values).astype(np.int16)
 
         # Convert to signed int to use range [-2048, 2048] for our motor positions.
         if data_name in CONVERT_UINT32_TO_INT32_REQUIRED:

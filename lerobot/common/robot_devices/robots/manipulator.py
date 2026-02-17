@@ -514,12 +514,27 @@ class ManipulatorRobot:
             follower_pos[name] = torch.from_numpy(follower_pos[name])
             self.logs[f"read_follower_{name}_pos_dt_s"] = time.perf_counter() - before_fread_t
 
+        # Read follower effort/torque (Present_Current)
+        follower_effort = {}
+        for name in self.follower_arms:
+            before_eread_t = time.perf_counter()
+            follower_effort[name] = self.follower_arms[name].read("Present_Current")
+            follower_effort[name] = torch.from_numpy(follower_effort[name])
+            self.logs[f"read_follower_{name}_effort_dt_s"] = time.perf_counter() - before_eread_t
+
         # Create state by concatenating follower current position
         state = []
         for name in self.follower_arms:
             if name in follower_pos:
                 state.append(follower_pos[name])
         state = torch.cat(state)
+
+        # Create effort by concatenating follower current effort
+        effort = []
+        for name in self.follower_arms:
+            if name in follower_effort:
+                effort.append(follower_effort[name])
+        effort = torch.cat(effort)
 
         # Create action by concatenating follower goal position
         action = []
@@ -540,6 +555,7 @@ class ManipulatorRobot:
         # Populate output dictionnaries
         obs_dict, action_dict = {}, {}
         obs_dict["observation.state"] = state
+        obs_dict["observation.effort"] = effort
         action_dict["action"] = action
         for name in self.cameras:
             obs_dict[f"observation.images.{name}"] = images[name]
@@ -561,12 +577,27 @@ class ManipulatorRobot:
             follower_pos[name] = torch.from_numpy(follower_pos[name])
             self.logs[f"read_follower_{name}_pos_dt_s"] = time.perf_counter() - before_fread_t
 
+        # Read follower effort/torque (Present_Current)
+        follower_effort = {}
+        for name in self.follower_arms:
+            before_eread_t = time.perf_counter()
+            follower_effort[name] = self.follower_arms[name].read("Present_Current")
+            follower_effort[name] = torch.from_numpy(follower_effort[name])
+            self.logs[f"read_follower_{name}_effort_dt_s"] = time.perf_counter() - before_eread_t
+
         # Create state by concatenating follower current position
         state = []
         for name in self.follower_arms:
             if name in follower_pos:
                 state.append(follower_pos[name])
         state = torch.cat(state)
+
+        # Create effort by concatenating follower current effort
+        effort = []
+        for name in self.follower_arms:
+            if name in follower_effort:
+                effort.append(follower_effort[name])
+        effort = torch.cat(effort)
 
         # Capture images from cameras
         images = {}
@@ -580,6 +611,7 @@ class ManipulatorRobot:
         # Populate output dictionnaries and format to pytorch
         obs_dict = {}
         obs_dict["observation.state"] = state
+        obs_dict["observation.effort"] = effort
         for name in self.cameras:
             obs_dict[f"observation.images.{name}"] = images[name]
         return obs_dict

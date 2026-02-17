@@ -1,34 +1,26 @@
 """
 Script to record current joint values from a robot.
 
-This script connects to the robot and records the current joint positions from all
-leader and follower arms, saving them to a JSON file. This is useful for saving
-specific poses or configurations.
+This script connects to the robot, optionally teleoperates for a specified duration,
+and then records the current joint positions from all leader and follower arms,
+saving them to a JSON file. This is useful for saving specific poses or configurations.
 
 Example of usage:
 ```bash
 python lerobot/scripts/record_joint_values.py --robot-path lerobot/configs/robot/aloha_solo.yaml --output poses/my_pose.json
 ```
-
-Alternatively, you can use the default robot config and output path:
-```bash
-python lerobot/scripts/record_joint_values.py
-```
-
-You can also specify which arms to record:
-```bash
-python lerobot/scripts/record_joint_values.py --arms left_follower right_follower
-```
 """
 
 import argparse
 import json
+import time
 from pathlib import Path
 from datetime import datetime
 
 from lerobot.common.robot_devices.robots.factory import make_robot
 from lerobot.common.robot_devices.robots.manipulator import ManipulatorRobot
 from lerobot.common.robot_devices.robots.utils import get_arm_id
+from lerobot.common.robot_devices.utils import busy_wait
 from lerobot.common.utils.utils import init_hydra_config
 
 
@@ -37,6 +29,8 @@ def record_joint_values(
     output_path: str | None = None,
     arms: list[str] | None = None,
     robot_overrides: list[str] | None = None,
+    teleop_duration_s: float = 10.0,
+    teleop_fps: int | None = None,
 ):
     """Record current joint values from the robot.
     
@@ -45,6 +39,8 @@ def record_joint_values(
         output_path: Path to output JSON file. If None, uses default location.
         arms: List of arm IDs to record. If None, records all available arms.
         robot_overrides: Optional robot config overrides
+        teleop_duration_s: Duration in seconds to teleoperate before recording (default: 10.0)
+        teleop_fps: Control frequency in Hz for teleoperation. If None, runs at maximum speed.
     """
     # Load robot configuration
     robot_cfg = init_hydra_config(robot_path, robot_overrides)
@@ -80,6 +76,38 @@ def record_joint_values(
             "No arms to record. Use `--arms` to specify which arms to record.\n"
             f"For instance: `--arms {available_arms_str}`"
         )
+
+    # Teleoperate before recording if duration is specified
+    if teleop_duration_s > 0:
+        print(f"\nTeleoperating for {teleop_duration_s} seconds before recording...")
+        print("Move the leader arm(s) to control the follower arm(s).")
+        print("Press Ctrl+C to skip teleoperation and record immediately.\n")
+        
+        start_time = time.perf_counter()
+        try:
+            while True:
+                loop_start = time.perf_counter()
+                
+                # Run one teleoperation step
+                robot.teleop_step(record_data=False)
+                
+                # Check if we've reached the duration
+                elapsed = time.perf_counter() - start_time
+                if elapsed >= teleop_duration_s:
+                    break
+                
+                # Control frequency if specified
+                if teleop_fps is not None:
+                    dt_s = time.perf_counter() - loop_start
+                    busy_wait(1.0 / teleop_fps - dt_s)
+                else:
+                    # Small delay to avoid busy waiting when no fps specified
+                    time.sleep(0.001)
+        
+        except KeyboardInterrupt:
+            print("\nTeleoperation interrupted. Recording current joint values...")
+        
+        print(f"✓ Teleoperation complete ({teleop_duration_s} seconds)\n")
 
     # Record joint values for each arm
     joint_values = {}
@@ -190,6 +218,18 @@ def main():
         default=None,
         help="Override robot config parameters. Example: 'robot.port=/dev/ttyUSB0'",
     )
+    parser.add_argument(
+        "--teleop-duration",
+        type=float,
+        default=10.0,
+        help="Duration in seconds to teleoperate before recording joint values (default: 10.0). Set to 0 to skip teleoperation.",
+    )
+    parser.add_argument(
+        "--teleop-fps",
+        type=int,
+        default=None,
+        help="Control frequency in Hz for teleoperation. If not specified, runs at maximum speed.",
+    )
 
     args = parser.parse_args()
     record_joint_values(
@@ -197,6 +237,8 @@ def main():
         args.output,
         args.arms,
         args.robot_overrides,
+        args.teleop_duration,
+        args.teleop_fps,
     )
 
 
