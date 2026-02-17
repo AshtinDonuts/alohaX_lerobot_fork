@@ -442,6 +442,50 @@ def perform_opening_ceremony(
     logging.info("\nStarting recording...\n")
 
 
+def enable_torque_for_reset(robot: Robot):
+    """Enable torque on all leader and follower arm motors for reset.
+    
+    This allows both leader and follower arms to be moved during reset.
+    
+    Args:
+        robot: Robot instance
+    """
+    # Check if it's a ManipulatorRobot
+    if not isinstance(robot, ManipulatorRobot):
+        logging.warning(
+            f"enable_torque_for_reset only supports ManipulatorRobot. Got {type(robot).__name__} instead. "
+            "Skipping torque enable."
+        )
+        return
+
+    # Determine which TorqueMode to use based on robot type
+    if robot.robot_type in ["koch", "koch_bimanual", "aloha"]:
+        from lerobot.common.robot_devices.motors.dynamixel import TorqueMode
+    elif robot.robot_type in ["so100", "moss"]:
+        from lerobot.common.robot_devices.motors.feetech import TorqueMode
+    else:
+        logging.warning(f"Unsupported robot type for reset torque enable: {robot.robot_type}. Skipping.")
+        return
+
+    logging.info("\nEnabling torque on all arms for reset...")
+    
+    # Enable torque on all follower arm motors
+    for name in robot.follower_arms:
+        arm = robot.follower_arms[name]
+        for motor_name in arm.motor_names:
+            arm.write("Torque_Enable", TorqueMode.ENABLED.value, motor_name)
+            logging.info(f"  {name} follower: Enabled torque on {motor_name}")
+    
+    # Enable torque on all leader arm motors
+    for name in robot.leader_arms:
+        arm = robot.leader_arms[name]
+        for motor_name in arm.motor_names:
+            arm.write("Torque_Enable", TorqueMode.ENABLED.value, motor_name)
+            logging.info(f"  {name} leader: Enabled torque on {motor_name}")
+    
+    logging.info("✓ All arms have torque enabled for reset.")
+
+
 @safe_disconnect
 def record(
     robot: Robot,
@@ -507,30 +551,8 @@ def record(
 
     listener, events = init_keyboard_listener()
 
-    # Execute opening ceremony or warmup
-    if use_opening_ceremony:
-        log_say("Opening ceremony", play_sounds)
-        try:
-            perform_opening_ceremony(
-                robot=robot,
-                pose_file=pose_file,
-                duration_s=ceremony_duration_s,
-                fps=ceremony_fps,
-                gripper_open_position=gripper_open_position,
-                gripper_close_threshold=gripper_close_threshold,
-                events=events,
-            )
-            # Check if user interrupted during opening ceremony
-            if events and events.get("stop_recording", False):
-                log_say("Stop recording", play_sounds, blocking=True)
-                stop_recording(robot, listener, display_cameras)
-                return None
-        except (ValueError, FileNotFoundError) as e:
-            logging.warning(f"Opening ceremony failed: {e}. Falling back to warmup.")
-            enable_teleoperation = policy is None
-            log_say("Warmup record", play_sounds)
-            warmup_record(robot, events, enable_teleoperation, warmup_time_s, display_cameras, fps)
-    else:
+    # Execute warmup if not using opening ceremony (opening ceremony will be done before each episode)
+    if not use_opening_ceremony:
         # Execute a few seconds without recording to:
         # 1. teleoperate the robot to move it in starting position if no policy provided,
         # 2. give times to the robot devices to connect and start synchronizing,
@@ -547,6 +569,29 @@ def record(
             break
 
         episode_index = dataset["num_episodes"]
+        
+        # Perform opening ceremony before each episode if enabled
+        if use_opening_ceremony:
+            log_say(f"Opening ceremony for episode {episode_index}", play_sounds)
+            try:
+                perform_opening_ceremony(
+                    robot=robot,
+                    pose_file=pose_file,
+                    duration_s=ceremony_duration_s,
+                    fps=ceremony_fps,
+                    gripper_open_position=gripper_open_position,
+                    gripper_close_threshold=gripper_close_threshold,
+                    events=events,
+                )
+                # Check if user interrupted during opening ceremony
+                if events and events.get("stop_recording", False):
+                    log_say("Stop recording", play_sounds, blocking=True)
+                    stop_recording(robot, listener, display_cameras)
+                    return None
+            except (ValueError, FileNotFoundError) as e:
+                logging.warning(f"Opening ceremony failed: {e}. Skipping to recording.")
+                # Continue to recording even if ceremony fails
+        
         log_say(f"Recording episode {episode_index}", play_sounds)
         record_episode(
             dataset=dataset,
@@ -568,6 +613,8 @@ def record(
             (episode_index < num_episodes - 1) or events["rerecord_episode"]
         ):
             log_say("Reset the environment", play_sounds)
+            # Enable torque on all arms (leader and follower) for reset
+            enable_torque_for_reset(robot)
             reset_environment(robot, events, reset_time_s)
 
         if events["rerecord_episode"]:
