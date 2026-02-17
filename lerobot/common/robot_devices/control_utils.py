@@ -4,6 +4,7 @@
 
 
 import logging
+import sys
 import time
 import traceback
 from contextlib import nullcontext
@@ -64,7 +65,8 @@ def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, f
                 log_dt(f"dtR{name}", robot.logs[key])
 
     info_str = " ".join(log_items)
-    logging.info(info_str)
+    # Logging disabled to avoid interfering with progress bar
+    # logging.info(info_str)
 
 
 @cache
@@ -139,18 +141,18 @@ def init_keyboard_listener():
     def on_press(key):
         try:
             if key == keyboard.Key.right:
-                print("Right arrow key pressed. Exiting loop...")
+                tqdm.tqdm.write("Right arrow key pressed. Exiting loop...")
                 events["exit_early"] = True
             elif key == keyboard.Key.left:
-                print("Left arrow key pressed. Exiting loop and rerecord the last episode...")
+                tqdm.tqdm.write("Left arrow key pressed. Exiting loop and rerecord the last episode...")
                 events["rerecord_episode"] = True
                 events["exit_early"] = True
             elif key == keyboard.Key.esc:
-                print("Escape key pressed. Stopping data recording...")
+                tqdm.tqdm.write("Escape key pressed. Stopping data recording...")
                 events["stop_recording"] = True
                 events["exit_early"] = True
         except Exception as e:
-            print(f"Error handling key press: {e}")
+            tqdm.tqdm.write(f"Error handling key press: {e}")
 
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
@@ -252,41 +254,65 @@ def control_loop(
 
     timestamp = 0
     start_episode_t = time.perf_counter()
-    while timestamp < control_time_s:
-        start_loop_t = time.perf_counter()
+    last_second = 0
+    
+    # Initialize progress bar when recording (following reset_environment pattern)
+    if dataset is not None and control_time_s != float("inf"):
+        pbar = tqdm.tqdm(
+            total=int(control_time_s),
+            desc="Recording episode",
+            unit="s",
+            file=sys.stderr,
+            dynamic_ncols=True,
+        )
+    else:
+        pbar = None
+    
+    try:
+        while timestamp < control_time_s:
+            start_loop_t = time.perf_counter()
 
-        if teleoperate:
-            observation, action = robot.teleop_step(record_data=True)
-        else:
-            observation = robot.capture_observation()
+            if teleoperate:
+                observation, action = robot.teleop_step(record_data=True)
+            else:
+                observation = robot.capture_observation()
 
-            if policy is not None:
-                pred_action = predict_action(observation, policy, device, use_amp)
-                # Action can eventually be clipped using `max_relative_target`,
-                # so action actually sent is saved in the dataset.
-                action = robot.send_action(pred_action)
-                action = {"action": action}
+                if policy is not None:
+                    pred_action = predict_action(observation, policy, device, use_amp)
+                    # Action can eventually be clipped using `max_relative_target`,
+                    # so action actually sent is saved in the dataset.
+                    action = robot.send_action(pred_action)
+                    action = {"action": action}
 
-        if dataset is not None:
-            add_frame(dataset, observation, action)
+            if dataset is not None:
+                add_frame(dataset, observation, action)
 
-        if display_cameras and not is_headless():
-            image_keys = [key for key in observation if "image" in key]
-            for key in image_keys:
-                cv2.imshow(key, cv2.cvtColor(observation[key].numpy(), cv2.COLOR_RGB2BGR))
-            cv2.waitKey(1)
+            if display_cameras and not is_headless():
+                image_keys = [key for key in observation if "image" in key]
+                for key in image_keys:
+                    cv2.imshow(key, cv2.cvtColor(observation[key].numpy(), cv2.COLOR_RGB2BGR))
+                cv2.waitKey(1)
 
-        if fps is not None:
+            if fps is not None:
+                dt_s = time.perf_counter() - start_loop_t
+                busy_wait(1 / fps - dt_s)
+
             dt_s = time.perf_counter() - start_loop_t
-            busy_wait(1 / fps - dt_s)
 
-        dt_s = time.perf_counter() - start_loop_t
-        log_control_info(robot, dt_s, fps=fps)
-
-        timestamp = time.perf_counter() - start_episode_t
-        if events["exit_early"]:
-            events["exit_early"] = False
-            break
+            timestamp = time.perf_counter() - start_episode_t
+            current_second = int(timestamp)
+            
+            # Update progress bar every second (following reset_environment pattern)
+            if pbar is not None and current_second > last_second:
+                pbar.update(1)
+                last_second = current_second
+            
+            if events["exit_early"]:
+                events["exit_early"] = False
+                break
+    finally:
+        if pbar is not None:
+            pbar.close()
 
 
 def reset_environment(robot, events, reset_time_s):
@@ -299,7 +325,7 @@ def reset_environment(robot, events, reset_time_s):
     start_vencod_t = time.perf_counter()
 
     # Wait if necessary
-    with tqdm.tqdm(total=reset_time_s, desc="Waiting") as pbar:
+    with tqdm.tqdm(total=reset_time_s, desc="Waiting", file=sys.stderr, dynamic_ncols=True) as pbar:
         while timestamp < reset_time_s:
             time.sleep(1)
             timestamp = time.perf_counter() - start_vencod_t
