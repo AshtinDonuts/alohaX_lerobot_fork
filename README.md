@@ -8,6 +8,18 @@ pip install pyserial
 
 ## Useful Commands
 
+### Send to Sleep
+Default takes 5 seconds to send to sleep pose.
+```
+python lerobot/scripts/move_to_rest_position.py \
+    --robot-path lerobot/configs/robot/aloha_solo.yaml \
+   --arms left_follower
+```
+### Shut down Torque
+```
+python lerobot/scripts/disable_torque.py --robot-path lerobot/configs/robot/aloha_solo.yaml
+```
+
 ### Teleoperation
 Teleop:
 ```
@@ -30,11 +42,11 @@ python lerobot/scripts/control_robot.py teleoperate \
 
 ### Recording:
 ```
-python lerobot/scripts/control_robot.py record \
+python lerobot/scripts/record_eps.py \
    --robot-path lerobot/configs/robot/aloha_solo.yaml \
    --fps 30 \
    --root data \
-   --repo-id my_local_repo \
+   --repo-id aloha/test \
    --tags tutorial \
    --warmup-time-s 5 \
    --episode-time-s 30 \
