@@ -96,6 +96,7 @@ python lerobot/scripts/control_robot.py record \
     --reset-time-s 10
     -p outputs/train/act_koch_real/checkpoints/080000/pretrained_model
 ```
+
 """
 
 import argparse
