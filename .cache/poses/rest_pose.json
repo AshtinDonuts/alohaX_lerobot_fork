@@ -1,0 +1,80 @@
+{
+  "robot_type": "aloha",
+  "timestamp": "2026-02-17T12:57:00.494839",
+  "arms_recorded": [
+    "left_follower",
+    "left_leader"
+  ],
+  "joint_values": {
+    "left_follower": {
+      "motor_names": [
+        "waist",
+        "shoulder",
+        "shoulder_shadow",
+        "elbow",
+        "elbow_shadow",
+        "forearm_roll",
+        "wrist_angle",
+        "wrist_rotate",
+        "gripper"
+      ],
+      "positions": [
+        0.703125,
+        198.80859375,
+        198.720703125,
+        189.31640625,
+        189.228515625,
+        2.724609375,
+        -113.115234375,
+        0.263671875,
+        20.893142700195312
+      ],
+      "positions_dict": {
+        "waist": 0.703125,
+        "shoulder": 198.80859375,
+        "shoulder_shadow": 198.720703125,
+        "elbow": 189.31640625,
+        "elbow_shadow": 189.228515625,
+        "forearm_roll": 2.724609375,
+        "wrist_angle": -113.115234375,
+        "wrist_rotate": 0.263671875,
+        "gripper": 20.893142700195312
+      }
+    },
+    "left_leader": {
+      "motor_names": [
+        "waist",
+        "shoulder",
+        "shoulder_shadow",
+        "elbow",
+        "elbow_shadow",
+        "forearm_roll",
+        "wrist_angle",
+        "wrist_rotate",
+        "gripper"
+      ],
+      "positions": [
+        2.98828125,
+        199.3359375,
+        199.16015625,
+        183.69140625,
+        183.779296875,
+        0.17578125,
+        -107.314453125,
+        4.921875,
+        -0.17182131111621857
+      ],
+      "positions_dict": {
+        "waist": 2.98828125,
+        "shoulder": 199.3359375,
+        "shoulder_shadow": 199.16015625,
+        "elbow": 183.69140625,
+        "elbow_shadow": 183.779296875,
+        "forearm_roll": 0.17578125,
+        "wrist_angle": -107.314453125,
+        "wrist_rotate": 4.921875,
+        "gripper": -0.17182131111621857
+      }
+    }
+  }
+}
