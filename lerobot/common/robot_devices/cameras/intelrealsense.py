@@ -456,10 +456,15 @@ class IntelRealSenseCamera:
 
     def read_loop(self):
         while not self.stop_event.is_set():
-            if self.use_depth:
-                self.color_image, self.depth_map = self.read()
-            else:
-                self.color_image = self.read()
+            try:
+                if self.use_depth:
+                    self.color_image, self.depth_map = self.read()
+                else:
+                    self.color_image = self.read()
+            except Exception as e:
+                print(f"Error reading in thread: {e}")
+                # Continue the loop to retry reading
+                time.sleep(0.1)
 
     def async_read(self):
         """Access the latest color image"""
@@ -481,7 +486,11 @@ class IntelRealSenseCamera:
             time.sleep(1 / self.fps)
             if num_tries > self.fps and (self.thread.ident is None or not self.thread.is_alive()):
                 raise Exception(
-                    "The thread responsible for `self.async_read()` took too much time to start. There might be an issue. Verify that `self.thread.start()` has been called."
+                    f"The thread responsible for `async_read()` for IntelRealSenseCamera({self.serial_number}) "
+                    f"took too much time to start or has crashed. The thread is not alive. "
+                    f"This usually indicates a camera connection issue. "
+                    f"Please verify: 1) The camera is properly connected, 2) No other process is using the camera, "
+                    f"3) The camera serial number is correct, 4) Check USB connection and power."
                 )
 
         if self.use_depth:

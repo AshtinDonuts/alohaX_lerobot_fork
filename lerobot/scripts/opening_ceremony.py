@@ -1,13 +1,6 @@
 """
-Script to move robot to rest pose, open gripper, lock joints with torque (except gripper),
-and release when leader gripper closes.
-
-This script:
-1. Moves both leader and follower arms to the rest pose from a JSON file
-2. Opens the gripper
-3. Locks all joint positions by enabling torque, except the gripper
-4. Monitors the leader arm gripper position
-5. When the leader gripper closes, disables torque on all motors to free the arms
+Can be used as a Teleoperation script with designated initial starting poses.
+Script originally intended to test the opening ceremony sequence.
 
 Example of usage:
 ```bash

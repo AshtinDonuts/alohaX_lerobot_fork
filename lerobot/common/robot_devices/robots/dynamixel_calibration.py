@@ -82,6 +82,12 @@ def run_arm_calibration(arm: MotorsBus, robot_type: str, arm_name: str, arm_type
     zero_nearest_pos = compute_nearest_rounded_position(zero_pos, arm.motor_models)
     homing_offset = zero_target_pos - zero_nearest_pos
 
+    print("\n=== Zero Position Results ===")
+    print(f"Target position (steps): {dict(zip(arm.motor_names, zero_target_pos))}")
+    print(f"Present position (steps): {dict(zip(arm.motor_names, zero_pos))}")
+    print(f"Nearest rounded position (steps): {dict(zip(arm.motor_names, zero_nearest_pos))}")
+    print(f"Initial homing offset (steps): {dict(zip(arm.motor_names, homing_offset))}")
+
     # The rotated target position corresponds to a rotation of a quarter turn from the zero position.
     # This allows to identify the rotation direction of each motor.
     # For instance, if the motor rotates 90 degree, and its value is -90 after applying the homing offset, then we know its rotation direction
@@ -105,10 +111,17 @@ def run_arm_calibration(arm: MotorsBus, robot_type: str, arm_name: str, arm_type
     rotated_nearest_pos = compute_nearest_rounded_position(rotated_drived_pos, arm.motor_models)
     homing_offset = rotated_target_pos - rotated_nearest_pos
 
+    print("\n=== Rotated Position Results ===")
+    print(f"Target position (steps): {dict(zip(arm.motor_names, rotated_target_pos))}")
+    print(f"Present position (steps): {dict(zip(arm.motor_names, rotated_pos))}")
+    print(f"Drive mode (0=normal, 1=inverted): {dict(zip(arm.motor_names, drive_mode))}")
+    print(f"Position after drive mode applied (steps): {dict(zip(arm.motor_names, rotated_drived_pos))}")
+    print(f"Nearest rounded position (steps): {dict(zip(arm.motor_names, rotated_nearest_pos))}")
+    print(f"Final homing offset (steps): {dict(zip(arm.motor_names, homing_offset))}")
+
     print("\nMove arm to rest position")
     print("See: " + URL_TEMPLATE.format(robot=robot_type, arm=arm_type, position="rest"))
     input("Press Enter to continue...")
-    print()
 
     # Joints with rotational motions are expressed in degrees in nominal range of [-180, 180]
     calib_mode = [CalibrationMode.DEGREE.name] * len(arm.motor_names)
@@ -127,4 +140,13 @@ def run_arm_calibration(arm: MotorsBus, robot_type: str, arm_name: str, arm_type
         "calib_mode": calib_mode,
         "motor_names": arm.motor_names,
     }
+
+    print("\n=== Final Calibration Results ===")
+    print(f"Calibration mode: {dict(zip(arm.motor_names, calib_mode))}")
+    print(f"Homing offset (steps): {dict(zip(arm.motor_names, homing_offset))}")
+    print(f"Drive mode (0=normal, 1=inverted): {dict(zip(arm.motor_names, drive_mode))}")
+    print(f"Start position (zero, steps): {dict(zip(arm.motor_names, zero_pos))}")
+    print(f"End position (rotated, steps): {dict(zip(arm.motor_names, rotated_pos))}")
+    print()
+
     return calib_data

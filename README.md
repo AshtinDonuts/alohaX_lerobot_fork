@@ -8,7 +8,7 @@ pip install av
 pip install rerun==0.16.0
 ```
 
-Sometimes you need to refresh the aloha module if changes don't take place
+Sometimes you need to refresh the aTloha module if changes don't take place
 ```
 cd <root>
 pip install -e .
@@ -16,7 +16,8 @@ pip install -e .
 ## Postprocessing
 
 ### Conversion script
-Converting from Trossen Data (hdf5) format into LeRobot V1 format (ours) to save space.
+Converting from Trossen Data (hdf5) format into LeRobot V1 format (current repo) to save space.
+
 ```
 python lerobot/scripts/convert_aloha_data_to_lerobotv1.py --raw-dir /mnt/c2d9b23a-b03e-4fdb-82ad-59f039ec9e3e/khw/green_ball_ssil/ --repo-id my_repo/test_dataset    --local-dir data/lerobot/my_repo-test_dataset
 ```
@@ -104,6 +105,14 @@ DATA_DIR=data python lerobot/scripts/train.py \
    wandb.enable=false
 ```
 
+### Visualize dataset
+```
+python lerobot/scripts/visualize_dataset.py \
+    --repo-id my_repo-test_dataset \
+    --episode-index 0 \
+    --root data/lerobot
+```
+
 ### Common Bugs
 Unknown encoder 'libsvtav1'
 ```
@@ -117,6 +126,11 @@ To make the change global, inside bashrc do this:
 ```
 export PATH="/home/khw/ffmpeg-master-latest-linux64-gpl/bin:$PATH"
 ```
+### Important notes
+
+**episodes/** folder is not necessary for training... and is only created during recording, as intermediate capture in case of program crash.
+We could safely delete it upon successful conversion.
+
 
 ### Read more
 https://docs.trossenrobotics.com/aloha_docs/2.0/training/lerobot_guide.html#lerobot-x-aloha-solo-user-guide

@@ -167,6 +167,11 @@ def visualize_dataset(
                 for dim_idx, val in enumerate(batch["observation.state"][i]):
                     rr.log(f"state/{dim_idx}", rr.Scalar(val.item()))
 
+            # display each dimension of observed effort space (e.g. joint torques/currents)
+            if "observation.effort" in batch:
+                for dim_idx, val in enumerate(batch["observation.effort"][i]):
+                    rr.log(f"effort/{dim_idx}", rr.Scalar(val.item()))
+
             if "next.done" in batch:
                 rr.log("next.done", rr.Scalar(batch["next.done"][i].item()))
 

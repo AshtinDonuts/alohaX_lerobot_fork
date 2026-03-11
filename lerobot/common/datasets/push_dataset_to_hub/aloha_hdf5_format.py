@@ -49,9 +49,6 @@ def get_cameras(hdf5_data):
 
 
 def check_format(raw_dir) -> bool:
-    # only frames from simulation are uncompressed
-    compressed_images = "sim" not in raw_dir.name
-
     hdf5_paths = list(raw_dir.glob("episode_*.hdf5"))
     assert len(hdf5_paths) != 0
     for hdf5_path in hdf5_paths:
@@ -66,14 +63,19 @@ def check_format(raw_dir) -> bool:
             assert num_frames == data["/observations/qpos"].shape[0]
 
             for camera in get_cameras(data):
-                assert num_frames == data[f"/observations/images/{camera}"].shape[0]
+                img_data = data[f"/observations/images/{camera}"]
+                assert num_frames == img_data.shape[0]
 
-                if compressed_images:
-                    assert data[f"/observations/images/{camera}"].ndim == 2
-                else:
-                    assert data[f"/observations/images/{camera}"].ndim == 4
-                    b, h, w, c = data[f"/observations/images/{camera}"].shape
+                # Check if images are compressed (2D) or uncompressed (4D)
+                if img_data.ndim == 2:
+                    # Compressed images: (num_frames, variable_length_bytes)
+                    pass
+                elif img_data.ndim == 4:
+                    # Uncompressed images: (num_frames, height, width, channels)
+                    b, h, w, c = img_data.shape
                     assert c < h and c < w, f"Expect (h,w,c) image format but ({h=},{w=},{c=}) provided."
+                else:
+                    raise ValueError(f"Unexpected image data shape: {img_data.shape}, expected 2D (compressed) or 4D (uncompressed)")
 
 
 def load_from_raw(
@@ -84,9 +86,6 @@ def load_from_raw(
     episodes: list[int] | None = None,
     encoding: dict | None = None,
 ):
-    # only frames from simulation are uncompressed
-    compressed_images = "sim" not in raw_dir.name
-
     hdf5_files = sorted(raw_dir.glob("episode_*.hdf5"))
     num_episodes = len(hdf5_files)
 
@@ -112,19 +111,36 @@ def load_from_raw(
 
             for camera in get_cameras(ep):
                 img_key = f"observation.images.{camera}"
+                img_data = ep[f"/observations/images/{camera}"]
 
-                if compressed_images:
+                # Check if images are compressed by examining the shape
+                # Compressed images are typically 2D (num_frames, variable_length_bytes)
+                # Uncompressed images are 4D (num_frames, height, width, channels)
+                is_compressed = img_data.ndim == 2
+
+                if is_compressed:
                     import cv2
 
                     # load one compressed image after the other in RAM and uncompress
                     imgs_array = []
-                    for data in ep[f"/observations/images/{camera}"]:
-                        imgs_array.append(cv2.imdecode(data, 1))
+                    for i in range(num_frames):
+                        data = img_data[i]
+                        # Ensure data is uint8 bytes for cv2.imdecode
+                        # Convert to numpy array first
+                        if not isinstance(data, np.ndarray):
+                            data = np.asarray(data)
+                        # Flatten if needed and ensure it's uint8 and contiguous
+                        data_flat = data.flatten() if data.ndim > 1 else data
+                        data_bytes = np.ascontiguousarray(data_flat, dtype=np.uint8)
+                        decoded_img = cv2.imdecode(data_bytes, cv2.IMREAD_COLOR)
+                        if decoded_img is None:
+                            raise ValueError(f"Failed to decode image at frame {i} for camera {camera}")
+                        imgs_array.append(decoded_img)
                     imgs_array = np.array(imgs_array)
 
                 else:
                     # load all images in RAM
-                    imgs_array = ep[f"/observations/images/{camera}"][:]
+                    imgs_array = img_data[:]
 
                 if video:
                     # save png images in temporary directory

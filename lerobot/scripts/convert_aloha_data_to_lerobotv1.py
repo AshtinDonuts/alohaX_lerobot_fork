@@ -2,9 +2,7 @@
 Script to convert Aloha hdf5 data to the LeRobot dataset format for local use only.
 
 Example usage:
-python lerobot/scripts/convert_aloha_data_to_lerobotv1.py --raw-dir /path/to/raw/data --repo-id my_repo/test_dataset --local-dir data/lerobot/my_dataset
 
-i.e.
 python lerobot/scripts/convert_aloha_data_to_lerobotv1.py --raw-dir /mnt/c2d9b23a-b03e-4fdb-82ad-59f039ec9e3e/khw/green_ball_ssil/ --repo-id my_repo/test_dataset    --local-dir data/lerobot/my_repo-test_dataset
 
 """
