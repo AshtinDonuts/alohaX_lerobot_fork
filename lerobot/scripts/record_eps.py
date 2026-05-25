@@ -84,6 +84,32 @@ from lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
 from lerobot.common.utils.utils import init_hydra_config, init_logging, log_say, none_or_int
 
 
+def prepare_for_teleop_recording(robot: ManipulatorRobot):
+    """Leaders backdrivable (except gripper); followers under position control for teleop."""
+    if robot.robot_type in ["koch", "koch_bimanual", "aloha"]:
+        from lerobot.common.robot_devices.motors.dynamixel import TorqueMode
+    elif robot.robot_type in ["so100", "moss"]:
+        from lerobot.common.robot_devices.motors.feetech import TorqueMode
+    else:
+        logging.warning(
+            f"Unsupported robot type for teleop torque setup: {robot.robot_type}. Skipping."
+        )
+        return
+
+    logging.info("Disabling torque on leader arms (except gripper) for teleoperation...")
+    for name in robot.leader_arms:
+        arm = robot.leader_arms[name]
+        for motor_name in arm.motor_names:
+            if motor_name != "gripper":
+                arm.write("Torque_Enable", TorqueMode.DISABLED.value, motor_name)
+
+    logging.info("Ensuring follower arms have torque enabled for teleoperation...")
+    for name in robot.follower_arms:
+        arm = robot.follower_arms[name]
+        for motor_name in arm.motor_names:
+            arm.write("Torque_Enable", TorqueMode.ENABLED.value, motor_name)
+
+
 def perform_opening_ceremony(
     robot: Robot,
     pose_file: str,
@@ -412,33 +438,10 @@ def perform_opening_ceremony(
             events["stop_recording"] = True
         return
 
-    # Disable torque on leader arms (except gripper) to allow manual movement
-    # Keep torque enabled on follower arms so they can follow the leader
-    # Enable torque on ALL follower arm motors (including gripper) so they can follow
     logging.info("\nPreparing for recording...")
-    logging.info("Disabling torque on leader arms (except gripper) to allow manual movement...")
-    logging.info("Ensuring follower arms have torque enabled on all motors for teleoperation...")
-    for arm_id in arms:
-        parts = arm_id.split("_")
-        arm_type = parts[-1]
-        arm_name = "_".join(parts[:-1])
-
-        if arm_type == "leader":
-            arm = robot.leader_arms[arm_name]
-            # Disable torque on all leader motors except gripper (gripper already disabled)
-            for motor_name in arm.motor_names:
-                if motor_name != "gripper":
-                    arm.write("Torque_Enable", TorqueMode.DISABLED.value, motor_name)
-                    logging.info(f"  {arm_id}: Disabled torque on {motor_name}")
-        else:
-            # Follower arm - enable torque on ALL motors (including gripper) so it can follow leader
-            arm = robot.follower_arms[arm_name]
-            for motor_name in arm.motor_names:
-                arm.write("Torque_Enable", TorqueMode.ENABLED.value, motor_name)
-                logging.info(f"  {arm_id}: Enabled torque on {motor_name} for teleoperation")
-
+    prepare_for_teleop_recording(robot)
     logging.info("\n✓ Leader arms are now free to move (except gripper).")
-    logging.info("✓ Follower arms have torque enabled on all motors and will follow leader movements.")
+    logging.info("✓ Follower arms have torque enabled and will follow leader movements.")
     logging.info("\nStarting recording...\n")
 
 
@@ -590,7 +593,8 @@ def record(
                     return None
             except (ValueError, FileNotFoundError) as e:
                 logging.warning(f"Opening ceremony failed: {e}. Skipping to recording.")
-                # Continue to recording even if ceremony fails
+                if isinstance(robot, ManipulatorRobot):
+                    prepare_for_teleop_recording(robot)
         
         log_say(f"Recording episode {episode_index}", play_sounds)
         record_episode(

@@ -13,7 +13,7 @@ robot_type: aloha
 # Specific to Aloha, LeRobot comes with default calibration files. Assuming the motors have been
 # properly assembled, no manual calibration step is expected. If you need to run manual calibration,
 # simply update this path to ".cache/calibration/aloha"
-calibration_dir: .cache/calibration/aloha_default
+calibration_dir: .cache/calibration/aloha_solo
 
 # /!\ FOR SAFETY, READ THIS /!\
 # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
@@ -90,28 +90,29 @@ follower_arms:
 # Troubleshooting: If one of your IntelRealSense cameras freeze during
 # data recording due to bandwidth limit, you might need to plug the camera
 # on another USB hub or PCIe card.
+# Serial numbers from interbotix aloha_stationary.yaml (camera_high/low/wrist_left/wrist_right)
 cameras:
-  cam_high:
-    _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 128422271347
-    fps: 30
-    width: 640
-    height: 480
+  # cam_high:
+  #   _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
+  #   serial_number: 218622274350
+  #   fps: 60
+  #   width: 640
+  #   height: 480
   cam_low:
     _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 130322270656
-    fps: 30
+    serial_number: 218622273734
+    fps: 60
     width: 640
     height: 480
   cam_left_wrist:
     _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 218622272670
-    fps: 30
+    serial_number: 218622275088
+    fps: 60
     width: 640
     height: 480
   cam_right_wrist:
     _target_: lerobot.common.robot_devices.cameras.intelrealsense.IntelRealSenseCamera
-    serial_number: 130322272300
-    fps: 30
+    serial_number: 218622270994
+    fps: 60
     width: 640
     height: 480

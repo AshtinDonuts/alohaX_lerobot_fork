@@ -3,7 +3,9 @@
   "timestamp": "2026-02-17T15:32:37.223533",
   "arms_recorded": [
     "left_follower",
-    "left_leader"
+    "left_leader",
+    "right_follower",
+    "right_leader"
   ],
   "joint_values": {
     "left_follower": {
@@ -42,6 +44,76 @@
       }
     },
     "left_leader": {
+      "motor_names": [
+        "waist",
+        "shoulder",
+        "shoulder_shadow",
+        "elbow",
+        "elbow_shadow",
+        "forearm_roll",
+        "wrist_angle",
+        "wrist_rotate",
+        "gripper"
+      ],
+      "positions": [
+        -6.591796875,
+        146.513671875,
+        146.865234375,
+        135.17578125,
+        135.615234375,
+        -0.263671875,
+        53.4375,
+        -3.427734375,
+        51.2027473449707
+      ],
+      "positions_dict": {
+        "waist": -6.591796875,
+        "shoulder": 146.513671875,
+        "shoulder_shadow": 146.865234375,
+        "elbow": 135.17578125,
+        "elbow_shadow": 135.615234375,
+        "forearm_roll": -0.263671875,
+        "wrist_angle": 53.4375,
+        "wrist_rotate": -3.427734375,
+        "gripper": 51.2027473449707
+      }
+    },
+    "right_follower": {
+      "motor_names": [
+        "waist",
+        "shoulder",
+        "shoulder_shadow",
+        "elbow",
+        "elbow_shadow",
+        "forearm_roll",
+        "wrist_angle",
+        "wrist_rotate",
+        "gripper"
+      ],
+      "positions": [
+        -5.9765625,
+        146.337890625,
+        146.25,
+        136.7578125,
+        136.669921875,
+        -0.087890625,
+        53.26171875,
+        -3.076171875,
+        50.877193450927734
+      ],
+      "positions_dict": {
+        "waist": -5.9765625,
+        "shoulder": 146.337890625,
+        "shoulder_shadow": 146.25,
+        "elbow": 136.7578125,
+        "elbow_shadow": 136.669921875,
+        "forearm_roll": -0.087890625,
+        "wrist_angle": 53.26171875,
+        "wrist_rotate": -3.076171875,
+        "gripper": 50.877193450927734
+      }
+    },
+    "right_leader": {
       "motor_names": [
         "waist",
         "shoulder",
