@@ -358,11 +358,15 @@ def encode_videos(dataset, image_keys, play_sounds):
             tmp_imgs_dir = videos_dir / f"{key}_episode_{episode_index:06d}"
             fname = f"{key}_episode_{episode_index:06d}.mp4"
             video_path = local_dir / "videos" / fname
-            if video_path.exists():
-                # Skip if video is already encoded. Could be the case when resuming data recording.
+            if not tmp_imgs_dir.exists():
+                if video_path.exists():
+                    # Already encoded and PNG scratch dir cleaned up (e.g. resume after success).
+                    continue
+                logging.warning(
+                    f"Skipping video encode for {fname}: no frames dir {tmp_imgs_dir.name} and no mp4."
+                )
                 continue
-            # note: `encode_video_frames` is a blocking call. Making it asynchronous shouldn't speedup encoding,
-            # since video encoding with ffmpeg is already using multithreading.
+            # Re-encode when PNGs are present, even if an old mp4 exists (stale from a prior run).
             encode_video_frames(tmp_imgs_dir, video_path, fps, overwrite=True)
             shutil.rmtree(tmp_imgs_dir)
 
