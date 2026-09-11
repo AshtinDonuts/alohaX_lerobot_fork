@@ -12,7 +12,7 @@ python lerobot/scripts/record_eps.py \
     --root tmp/data \
     --repo-id $USER/koch_test \
     --num-episodes 1 \
-    --run-compute-stats 0
+    --skip-compute-stats
 ```
 
 - Record a full dataset in order to train a policy, with 2 seconds of warmup,
@@ -681,7 +681,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--episode-time-s",
         type=int,
-        default=60,
+        default=120,
         help="Number of seconds for data recording for each episode.",
     )
     parser.add_argument(
@@ -695,7 +695,16 @@ if __name__ == "__main__":
         "--run-compute-stats",
         type=int,
         default=1,
-        help="By default, run the computation of the data statistics at the end of data collection. Compute intensive and not required to just replay an episode.",
+        help=(
+            "Run dataset statistics at the end of recording (1) or skip them (0). "
+            "Stats are compute-intensive and not required for replay; use 0 or --skip-compute-stats "
+            "for faster iteration. Required before training a policy."
+        ),
+    )
+    parser.add_argument(
+        "--skip-compute-stats",
+        action="store_true",
+        help="Skip dataset statistics at the end of recording (same as --run-compute-stats 0).",
     )
     parser.add_argument(
         "--push-to-hub",
@@ -822,7 +831,10 @@ if __name__ == "__main__":
     kwargs["play_sounds"] = bool(kwargs["play_sounds"])
     kwargs["video"] = bool(kwargs["video"])
     kwargs["force_override"] = bool(kwargs["force_override"])
-    kwargs["run_compute_stats"] = bool(kwargs["run_compute_stats"])
+    if kwargs.pop("skip_compute_stats"):
+        kwargs["run_compute_stats"] = False
+    else:
+        kwargs["run_compute_stats"] = bool(kwargs["run_compute_stats"])
     kwargs["push_to_hub"] = bool(kwargs["push_to_hub"])
     kwargs["use_opening_ceremony"] = bool(kwargs["use_opening_ceremony"])
 

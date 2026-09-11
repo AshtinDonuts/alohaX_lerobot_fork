@@ -70,6 +70,17 @@ python lerobot/scripts/record_eps.py \
    --num-episodes 2
 ```
 
+Skip dataset statistics at the end (faster; run stats before training):
+```
+python lerobot/scripts/record_eps.py \
+   --robot-path lerobot/configs/robot/aloha_solo.yaml \
+   --fps 50 \
+   --root data \
+   --repo-id aloha/test \
+   --num-episodes 2 \
+   --skip-compute-stats
+```
+
 #### Note on using local repos:
 
 * --root defaults to "data" if not specified

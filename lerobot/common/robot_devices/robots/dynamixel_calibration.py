@@ -1,6 +1,10 @@
 """Logic to calibrate a robot arm built with dynamixel motors"""
 # TODO(rcadene, aliberts): move this logic into the robot code when refactoring
 
+import select
+import sys
+import time
+
 import numpy as np
 
 from lerobot.common.robot_devices.motors.dynamixel import (
@@ -13,6 +17,16 @@ from lerobot.common.robot_devices.motors.utils import MotorsBus
 URL_TEMPLATE = (
     "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
 )
+
+_RANGE_POLL_HZ = 20  # how often to re-read positions during range recording
+
+
+def _enter_pressed() -> bool:
+    """Non-blocking check: returns True if the user pressed Enter."""
+    if select.select([sys.stdin], [], [], 0)[0]:
+        sys.stdin.readline()
+        return True
+    return False
 
 # The following positions are provided in nominal degree range ]-180, +180[
 # For more info on these constants, see comments in the code where they get used.
@@ -147,6 +161,131 @@ def run_arm_calibration(arm: MotorsBus, robot_type: str, arm_name: str, arm_type
     print(f"Drive mode (0=normal, 1=inverted): {dict(zip(arm.motor_names, drive_mode))}")
     print(f"Start position (zero, steps): {dict(zip(arm.motor_names, zero_pos))}")
     print(f"End position (rotated, steps): {dict(zip(arm.motor_names, rotated_pos))}")
+    print()
+
+    return calib_data
+
+
+def run_arm_range_calibration(arm: MotorsBus, robot_type: str, arm_name: str, arm_type: str):
+    """Range-of-motion calibration (newer-style, no reference images).
+
+    This is a drop-in replacement for ``run_arm_calibration`` that produces the same
+    JSON format while using a different interaction model:
+
+    1. **Zero step** – user moves the arm to its anatomical zero (straight/rest
+       position) and presses Enter.  Homing offsets are computed so that position
+       becomes 0 degrees.
+
+    2. **Range step** – a live table streams ``MIN | POS | MAX`` raw encoder counts
+       for every joint while the user sweeps each joint through its full range of
+       motion with torque off.  Press Enter to finish.
+
+    3. **Drive-mode inference** – for each DEGREE joint the script checks whether
+       the motor traveled further in the raw-negative direction from zero (→ the
+       encoder is "upside-down", drive_mode=1) or further in the raw-positive
+       direction (drive_mode=0).  This relies on the zero position being near the
+       anatomical mid-range of each joint, which holds for Aloha/Koch-style arms.
+
+    LINEAR joints (e.g. Aloha gripper) use ``range_min`` as ``start_pos`` (0 %)
+    and ``range_max`` as ``end_pos`` (100 %).
+    """
+    if (arm.read("Torque_Enable") != TorqueMode.DISABLED.value).any():
+        raise ValueError("To run calibration, the torque must be disabled on all motors.")
+
+    print(f"\nRunning range-of-motion calibration of {robot_type} {arm_name} {arm_type}...")
+
+    # ── Phase 1: zero position ────────────────────────────────────────────────
+    print("\n[Phase 1] Move the arm to its ZERO / rest position.")
+    print("  All joints should be in a neutral, straight position.")
+    input("Press Enter when ready...")
+
+    zero_pos = arm.read("Present_Position")
+    zero_target_pos = convert_degrees_to_steps(ZERO_POSITION_DEGREE, arm.motor_models)
+    zero_nearest_pos = compute_nearest_rounded_position(zero_pos, arm.motor_models)
+
+    print("\n=== Zero Position ===")
+    for name, pos in zip(arm.motor_names, zero_pos):
+        print(f"  {name:<20} raw={pos}")
+
+    # ── Phase 2: range of motion ──────────────────────────────────────────────
+    print("\n[Phase 2] Slowly move EACH JOINT through its FULL range of motion")
+    print("  (both directions from zero).  The table below updates live.")
+    print("  Press Enter when you have swept all joints to their limits.\n")
+
+    # Flush any pending newlines in stdin before the non-blocking loop.
+    if select.select([sys.stdin], [], [], 0.0)[0]:
+        sys.stdin.readline()
+
+    range_min = zero_pos.copy()
+    range_max = zero_pos.copy()
+
+    col_w = max(len(n) for n in arm.motor_names) + 2
+    header = f"{'NAME':<{col_w}} | {'MIN':>6} | {'POS':>6} | {'MAX':>6}"
+
+    while True:
+        positions = arm.read("Present_Position")
+        range_min = np.minimum(range_min, positions)
+        range_max = np.maximum(range_max, positions)
+
+        # Overwrite the previous table lines in-place.
+        lines = len(arm.motor_names) + 2
+        sys.stdout.write(f"\033[{lines}A")  # move cursor up
+        print(header)
+        print("-" * len(header))
+        for name, mn, pos, mx in zip(arm.motor_names, range_min, positions, range_max):
+            print(f"{name:<{col_w}} | {mn:>6} | {pos:>6} | {mx:>6}")
+
+        if _enter_pressed():
+            break
+
+        time.sleep(1.0 / _RANGE_POLL_HZ)
+
+    end_pos = arm.read("Present_Position")
+
+    print("\n=== Range of Motion Recorded ===")
+    for name, mn, mx in zip(arm.motor_names, range_min, range_max):
+        print(f"  {name:<20} min={mn}  max={mx}  span={mx - mn}")
+
+    # ── Phase 3: derive drive_mode and homing_offset ──────────────────────────
+    # drive_mode=1 when the motor has more raw range in the negative direction
+    # from zero (i.e. the encoder decreases for positive physical motion).
+    neg_excursion = zero_pos - range_min   # how far below zero we reached
+    pos_excursion = range_max - zero_pos   # how far above zero we reached
+    drive_mode = (neg_excursion > pos_excursion).astype(np.int32)
+
+    # Recompute homing_offset accounting for drive_mode (same formula as old calibration).
+    driven_zero = apply_drive_mode(zero_pos.copy(), drive_mode)
+    driven_nearest = compute_nearest_rounded_position(driven_zero, arm.motor_models)
+    homing_offset = zero_target_pos - driven_nearest
+
+    # ── calib_mode per joint ──────────────────────────────────────────────────
+    calib_mode = [CalibrationMode.DEGREE.name] * len(arm.motor_names)
+    if robot_type in ["aloha"] and "gripper" in arm.motor_names:
+        calib_idx = arm.motor_names.index("gripper")
+        calib_mode[calib_idx] = CalibrationMode.LINEAR.name
+
+    # For LINEAR joints override start/end with the observed range extremes.
+    start_pos = zero_pos.copy().tolist()
+    stored_end_pos = end_pos.tolist()
+    for i, (mode, name) in enumerate(zip(calib_mode, arm.motor_names)):
+        if mode == CalibrationMode.LINEAR.name:
+            start_pos[i] = int(range_min[i])
+            stored_end_pos[i] = int(range_max[i])
+
+    calib_data = {
+        "homing_offset": homing_offset.tolist(),
+        "drive_mode": drive_mode.tolist(),
+        "start_pos": start_pos,
+        "end_pos": stored_end_pos,
+        "calib_mode": calib_mode,
+        "motor_names": arm.motor_names,
+    }
+
+    print("\n=== Final Calibration ===")
+    print(f"  {'Motor':<20} {'drive_mode':>10} {'homing_offset':>14} {'calib_mode':>10}")
+    print(f"  {'-'*56}")
+    for name, dm, ho, cm in zip(arm.motor_names, drive_mode, homing_offset, calib_mode):
+        print(f"  {name:<20} {dm:>10} {ho:>14} {cm:>10}")
     print()
 
     return calib_data

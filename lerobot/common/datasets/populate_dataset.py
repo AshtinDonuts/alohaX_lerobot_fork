@@ -206,6 +206,17 @@ def init_dataset(
     else:
         num_episodes = 0
 
+    # When resuming an existing dataset, read fps/video from saved metadata if not provided
+    meta_info_path = local_dir / "meta_data" / "info.json"
+    if meta_info_path.exists():
+        with open(meta_info_path) as f:
+            saved_info = json.load(f)
+        if fps is None:
+            fps = saved_info.get("fps", fps)
+            logging.info(f"Resuming dataset: using saved fps={fps} from meta_data/info.json")
+        if video is None:
+            video = saved_info.get("video", video)
+
     dataset = {
         "repo_id": repo_id,
         "local_dir": local_dir,

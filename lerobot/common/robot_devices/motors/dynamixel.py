@@ -493,15 +493,19 @@ class DynamixelMotorsBus:
                 # useful for joints with linear motions like Aloha gripper
                 values[i] = (values[i] - start_pos) / (end_pos - start_pos) * 100
 
-                if (values[i] < LOWER_BOUND_LINEAR) or (values[i] > UPPER_BOUND_LINEAR):
-                    raise JointOutOfRangeError(
-                        f"Wrong motor position range detected for {name}. "
-                        f"Expected to be in nominal range of [0, 100] % (a full linear translation), "
-                        f"with a maximum range of [{LOWER_BOUND_LINEAR}, {UPPER_BOUND_LINEAR}] % to account for some imprecision during calibration, "
-                        f"but present value is {values[i]} %. "
-                        "This might be due to a cable connection issue creating an artificial jump in motor values. "
-                        "You need to recalibrate by running: `python lerobot/scripts/control_robot.py calibrate`"
-                    )
+                # NOTE: Safety check disabled per user request.
+                # Keeping this block (commented out) preserves the original intent
+                # and makes it easy to re-enable if needed.
+                #
+                # if (values[i] < LOWER_BOUND_LINEAR) or (values[i] > UPPER_BOUND_LINEAR):
+                #     raise JointOutOfRangeError(
+                #         f"Wrong motor position range detected for {name}. "
+                #         f"Expected to be in nominal range of [0, 100] % (a full linear translation), "
+                #         f"with a maximum range of [{LOWER_BOUND_LINEAR}, {UPPER_BOUND_LINEAR}] % to account for some imprecision during calibration, "
+                #         f"but present value is {values[i]} %. "
+                #         "This might be due to a cable connection issue creating an artificial jump in motor values. "
+                #         "You need to recalibrate by running: `python lerobot/scripts/control_robot.py calibrate`"
+                #     )
 
         return values
 
